@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "Candidate": {
+      "title": "Candidate",
+      "description": "A student running for a position in the school election.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the candidate." },
+        "role": { "type": "string", "enum": ["DELEGADO", "SUBDELEGADO", "TERCER_DELEGADO"], "description": "The position they are running for." },
+        "photoUrl": { "type": "string", "description": "URL to the candidate's photo." },
+        "isPaused": { "type": "boolean", "description": "Whether the candidate is currently paused from receiving votes." }
+      },
+      "required": ["name", "role"]
+    },
+    "Vote": {
+      "title": "Vote",
+      "description": "A single vote cast by a device for a specific candidate and role.",
+      "type": "object",
+      "properties": {
+        "candidateId": { "type": "string", "description": "The ID of the candidate voted for." },
+        "role": { "type": "string", "enum": ["DELEGADO", "SUBDELEGADO", "TERCER_DELEGADO"], "description": "The position being voted on." },
+        "deviceId": { "type": "string", "description": "The unique identifier of the device that cast the vote." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the vote was cast." },
+        "ip": { "type": "string", "description": "IP address of the voter (optional)." }
+      },
+      "required": ["candidateId", "role", "deviceId", "timestamp"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "maintenanceMode": { "type": "boolean", "description": "If true, the app is in maintenance mode." },
+        "restrictionMode": { "type": "string", "enum": ["strict", "light"], "description": "Voting restriction level." },
+        "votingOpenTime": { "type": "string", "format": "date-time", "description": "When voting opens." },
+        "votingCloseTime": { "type": "string", "format": "date-time", "description": "When voting closes." }
+      },
+      "required": ["maintenanceMode", "restrictionMode"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Log of admin actions.",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string", "description": "The action performed." },
+        "details": { "type": "string", "description": "Details of the action." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the action occurred." },
+        "adminId": { "type": "string", "description": "Who performed the action." }
+      },
+      "required": ["action", "details", "timestamp", "adminId"]
+    }
+  },
+  "firestore": {
+    "/candidates/{candidateId}": {
+      "schema": { "$ref": "#/entities/Candidate" },
+      "description": "Collection of all candidates."
+    },
+    "/votes/{voteId}": {
+      "schema": { "$ref": "#/entities/Vote" },
+      "description": "Collection of all cast votes."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/Settings" },
+      "description": "Global settings (usually just one document 'global')."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Admin audit logs."
+    }
+  }
+}

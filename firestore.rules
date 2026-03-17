@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: candidates
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - role: string (required, enum: DELEGADO, SUBDELEGADO, TERCER_DELEGADO)
+    //   - photoUrl: string (optional, valid URL)
+    //   - isPaused: boolean (optional)
+    //
+    // Collection: votes
+    // Document ID: auto-generated
+    // Fields:
+    //   - candidateId: string (required, valid candidate ID)
+    //   - role: string (required, enum: DELEGADO, SUBDELEGADO, TERCER_DELEGADO)
+    //   - deviceId: string (required, 1-100 chars)
+    //   - timestamp: timestamp (required)
+    //   - ip: string (optional)
+    //
+    // Collection: settings
+    // Document ID: global
+    // Fields:
+    //   - maintenanceMode: boolean
+    //   - restrictionMode: string (strict | light)
+    //   - votingOpenTime: timestamp (optional)
+    //   - votingCloseTime: timestamp (optional)
+    //
+    // Collection: auditLogs
+    // Document ID: auto-generated
+    // Fields:
+    //   - action: string
+    //   - details: string
+    //   - timestamp: timestamp
+    //   - adminId: string
+    // ===============================================================
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+    
+    function isValidRole(role) {
+      return role in ['DELEGADO', 'SUBDELEGADO', 'TERCER_DELEGADO'];
+    }
+    
+    function isValidCandidate() {
+      return hasOnlyAllowedFields(['name', 'role', 'photoUrl', 'isPaused']) &&
+             hasRequiredFields(['name', 'role']) &&
+             isValidString('name', 1, 100) &&
+             isValidRole(request.resource.data.role) &&
+             (!('photoUrl' in request.resource.data) || (request.resource.data.photoUrl is string && request.resource.data.photoUrl.size() <= 500)) &&
+             (!('isPaused' in request.resource.data) || request.resource.data.isPaused is bool);
+    }
+    
+    function isValidVote() {
+      return hasOnlyAllowedFields(['candidateId', 'role', 'deviceId', 'timestamp', 'ip', 'hwid']) &&
+             hasRequiredFields(['candidateId', 'role', 'deviceId', 'timestamp']) &&
+             isValidString('candidateId', 1, 100) &&
+             isValidRole(request.resource.data.role) &&
+             isValidString('deviceId', 1, 200) &&
+             request.resource.data.timestamp is timestamp &&
+             (!('ip' in request.resource.data) || request.resource.data.ip is string) &&
+             (!('hwid' in request.resource.data) || request.resource.data.hwid is string);
+    }
+
+    match /candidates/{candidateId} {
+      // Allow public read so users can see candidates.
+      allow read: if true;
+      // Only allow creation if valid (in a real app, only admin, but here we might seed data)
+      allow create: if isValidCandidate();
+      allow update: if isValidCandidate(); // Allow updates from admin panel
+      allow delete: if true; // Allow delete from admin panel
+    }
+    
+    match /votes/{voteId} {
+      // Allow public read for the real-time admin dashboard
+      allow read: if true;
+      // Allow creation if the vote is valid (using deviceId for basic sybil resistance)
+      allow create: if isValidVote();
+      allow update: if false; // Votes cannot be changed
+      allow delete: if true; // Allow delete from admin panel
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if true; // In a real app, restrict to admin
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if true;
+      allow write: if true; // In a real app, restrict to admin
+    }
+  }
+}
