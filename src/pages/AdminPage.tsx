@@ -1,18 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Candidate, Vote, Role, Settings, AuditLog } from '../types';
+import { Candidate, Vote, Settings, AuditLog } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid } from 'recharts';
 import { motion } from 'motion/react';
 import { Loader2, Users, Plus, Trash2, Settings as SettingsIcon, ShieldAlert, Power, Pause, Play, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-
-const ROLES: { id: Role; title: string }[] = [
-  { id: 'DELEGADO', title: 'Delegado' },
-  { id: 'SUBDELEGADO', title: 'Subdelegado' },
-  { id: 'TERCER_DELEGADO', title: 'Tercer Delegado' },
-];
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
 
@@ -34,11 +28,9 @@ export function AdminPage() {
 
   // Form states
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<Role>('DELEGADO');
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [newVoteRole, setNewVoteRole] = useState<Role>('DELEGADO');
   const [newVoteCandidateId, setNewVoteCandidateId] = useState('');
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
 
@@ -140,11 +132,9 @@ export function AdminPage() {
     );
   }
 
-  const getResultsForRole = (role: Role) => {
-    const roleCandidates = candidates.filter((c) => c.role === role);
-    const roleVotes = votes.filter((v) => v.role === role);
-    const results = roleCandidates.map((candidate) => {
-      const voteCount = roleVotes.filter((v) => v.candidateId === candidate.id).length;
+  const getResults = () => {
+    const results = candidates.map((candidate) => {
+      const voteCount = votes.filter((v) => v.candidateId === candidate.id).length;
       return { name: candidate.name, votos: voteCount };
     });
     return results.sort((a, b) => b.votos - a.votos);
@@ -158,10 +148,10 @@ export function AdminPage() {
     if (!newName.trim()) return;
     setIsSubmitting(true);
     try {
-      const candidateData: any = { name: newName.trim(), role: newRole, isPaused: false };
+      const candidateData: any = { name: newName.trim(), isPaused: false };
       if (newPhotoUrl.trim()) candidateData.photoUrl = newPhotoUrl.trim();
       await addDoc(collection(db, 'candidates'), candidateData);
-      logAction('ADD_CANDIDATE', `Added candidate ${newName.trim()} for ${newRole}`);
+      logAction('ADD_CANDIDATE', `Added candidate ${newName.trim()}`);
       toast.success('Candidato agregado');
       setNewName(''); setNewPhotoUrl('');
     } catch (err) {
@@ -198,7 +188,6 @@ export function AdminPage() {
     try {
       await addDoc(collection(db, 'votes'), {
         candidateId: newVoteCandidateId,
-        role: newVoteRole,
         deviceId: `manual-${Date.now()}`,
         timestamp: new Date()
       });
@@ -269,8 +258,8 @@ export function AdminPage() {
 
   const handleExportData = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
-      + "ID,Candidate ID,Role,Device ID,HWID,IP,Timestamp\n"
-      + votes.map(v => `${v.id},${v.candidateId},${v.role},${v.deviceId},${v.hwid || ''},${v.ip || ''},${v.timestamp?.toDate ? v.timestamp.toDate().toISOString() : ''}`).join("\n");
+      + "ID,Candidate ID,Device ID,HWID,IP,Timestamp\n"
+      + votes.map(v => `${v.id},${v.candidateId},${v.deviceId},${v.hwid || ''},${v.ip || ''},${v.timestamp?.toDate ? v.timestamp.toDate().toISOString() : ''}`).join("\n");
     
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -420,12 +409,6 @@ export function AdminPage() {
                 <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej. Juan Pérez" className="w-full rounded-2xl px-5 py-4 glass-input" required />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-blue-200/80">Cargo</label>
-                <select value={newRole} onChange={(e) => setNewRole(e.target.value as Role)} className="w-full rounded-2xl px-5 py-4 glass-input appearance-none">
-                  {ROLES.map((r) => <option key={r.id} value={r.id} className="bg-slate-900 text-white">{r.title}</option>)}
-                </select>
-              </div>
-              <div>
                 <label className="mb-2 block text-sm font-medium text-blue-200/80">URL Foto (Opcional)</label>
                 <input type="url" value={newPhotoUrl} onChange={(e) => setNewPhotoUrl(e.target.value)} placeholder="https://..." className="w-full rounded-2xl px-5 py-4 glass-input" />
               </div>
@@ -447,7 +430,6 @@ export function AdminPage() {
                       </div>
                       <div>
                         <p className="font-bold text-white tracking-wide">{candidate.name} {candidate.isPaused && <span className="text-xs text-red-400 ml-2">(Pausado)</span>}</p>
-                        <p className="text-sm text-blue-300/80 uppercase tracking-wider font-medium mt-1">{ROLES.find(r => r.id === candidate.role)?.title}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -471,16 +453,10 @@ export function AdminPage() {
             <h2 className="mb-6 text-2xl font-bold text-white tracking-tight">Agregar Voto Manual</h2>
             <form onSubmit={handleAddVote} className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-blue-200/80">Cargo</label>
-                <select value={newVoteRole} onChange={(e) => { setNewVoteRole(e.target.value as Role); setNewVoteCandidateId(''); }} className="w-full rounded-2xl px-5 py-4 glass-input appearance-none">
-                  {ROLES.map((r) => <option key={r.id} value={r.id} className="bg-slate-900 text-white">{r.title}</option>)}
-                </select>
-              </div>
-              <div>
                 <label className="mb-2 block text-sm font-medium text-blue-200/80">Candidato</label>
                 <select value={newVoteCandidateId} onChange={(e) => setNewVoteCandidateId(e.target.value)} className="w-full rounded-2xl px-5 py-4 glass-input appearance-none" required>
                   <option value="" className="bg-slate-900 text-white">Selecciona un candidato</option>
-                  {candidates.filter(c => c.role === newVoteRole).map((c) => <option key={c.id} value={c.id} className="bg-slate-900 text-white">{c.name}</option>)}
+                  {candidates.map((c) => <option key={c.id} value={c.id} className="bg-slate-900 text-white">{c.name}</option>)}
                 </select>
               </div>
               <button type="submit" disabled={isSubmittingVote || !newVoteCandidateId} className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white glass-button-primary disabled:opacity-50 mt-2">
@@ -500,7 +476,7 @@ export function AdminPage() {
                       <div>
                         <p className="font-bold text-white tracking-wide">{candidate?.name || 'Candidato Desconocido'}</p>
                         <p className="text-sm text-blue-300/80 uppercase tracking-wider font-medium mt-1">
-                          {ROLES.find(r => r.id === vote.role)?.title} • {vote.deviceId.startsWith('manual') ? 'Manual' : 'Dispositivo'}
+                          {vote.deviceId.startsWith('manual') ? 'Manual' : 'Dispositivo'}
                         </p>
                         <div className="text-xs text-blue-200/50 mt-1 font-mono">
                           {vote.ip && <span>IP: {vote.ip}</span>}
@@ -519,14 +495,36 @@ export function AdminPage() {
         </div>
 
         {/* Results Charts */}
-        <div className="grid gap-8 lg:grid-cols-2">
-          {ROLES.map((roleObj, index) => {
-            const data = getResultsForRole(roleObj.id);
-            return (
-              <motion.section key={roleObj.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: index * 0.1 }} className={`rounded-[2rem] glass-panel p-6 sm:p-10 ${index === 2 ? 'lg:col-span-2' : ''}`}>
-                <h2 className="mb-8 text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">{roleObj.title}</h2>
-                {data.length === 0 ? <p className="text-blue-200/60 italic">No hay datos para mostrar.</p> : (
-                  <div className="h-[300px] w-full">
+        <div className="grid gap-8 lg:grid-cols-1">
+          <motion.section initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="rounded-[2rem] glass-panel p-6 sm:p-10">
+            <h2 className="mb-8 text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">Resultados Generales</h2>
+            
+            {(() => {
+              const data = getResults();
+              if (data.length === 0) return <p className="text-blue-200/60 italic">No hay datos para mostrar.</p>;
+              
+              const top3 = data.slice(0, 3);
+              const titles = ['Delegado', 'Subdelegado', 'Tercer Delegado'];
+              const colors = ['text-yellow-400', 'text-gray-300', 'text-amber-600'];
+              const bgColors = ['bg-yellow-500/10 border-yellow-500/20', 'bg-gray-400/10 border-gray-400/20', 'bg-amber-600/10 border-amber-600/20'];
+
+              return (
+                <>
+                  {/* Podium */}
+                  <div className="mb-10 grid gap-4 sm:grid-cols-3">
+                    {top3.map((res, idx) => (
+                      <div key={idx} className={`rounded-2xl border p-5 text-center ${bgColors[idx] || 'bg-white/5 border-white/10'}`}>
+                        <p className={`text-xs font-bold uppercase tracking-widest ${colors[idx] || 'text-blue-400'}`}>
+                          {titles[idx] || `Puesto ${idx + 1}`}
+                        </p>
+                        <p className="mt-2 text-xl font-bold text-white">{res.name}</p>
+                        <p className="text-blue-200/60 font-mono mt-1">{res.votos} votos</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Chart */}
+                  <div className="h-[400px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                         <XAxis dataKey="name" stroke="#9ca3af" tick={{ fill: '#9ca3af' }} axisLine={{ stroke: '#374151' }} />
@@ -538,10 +536,10 @@ export function AdminPage() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                )}
-              </motion.section>
-            );
-          })}
+                </>
+              );
+            })()}
+          </motion.section>
         </div>
       </div>
     </div>

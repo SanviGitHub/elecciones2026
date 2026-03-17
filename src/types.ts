@@ -1,9 +1,7 @@
-export type Role = 'DELEGADO' | 'SUBDELEGADO' | 'TERCER_DELEGADO';
-
 export interface Candidate {
   id: string;
   name: string;
-  role: Role;
+  role?: string;
   photoUrl?: string;
   isPaused?: boolean;
 }
@@ -11,7 +9,7 @@ export interface Candidate {
 export interface Vote {
   id: string;
   candidateId: string;
-  role: Role;
+  role?: string;
   deviceId: string;
   timestamp: any; // Firebase Timestamp
   ip?: string;

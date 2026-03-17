@@ -59,24 +59,20 @@ service cloud.firestore {
         request.resource.data[field].size() <= maxLen;
     }
     
-    function isValidRole(role) {
-      return role in ['DELEGADO', 'SUBDELEGADO', 'TERCER_DELEGADO'];
-    }
-    
     function isValidCandidate() {
       return hasOnlyAllowedFields(['name', 'role', 'photoUrl', 'isPaused']) &&
-             hasRequiredFields(['name', 'role']) &&
+             hasRequiredFields(['name']) &&
              isValidString('name', 1, 100) &&
-             isValidRole(request.resource.data.role) &&
+             (!('role' in request.resource.data) || request.resource.data.role is string) &&
              (!('photoUrl' in request.resource.data) || (request.resource.data.photoUrl is string && request.resource.data.photoUrl.size() <= 500)) &&
              (!('isPaused' in request.resource.data) || request.resource.data.isPaused is bool);
     }
     
     function isValidVote() {
       return hasOnlyAllowedFields(['candidateId', 'role', 'deviceId', 'timestamp', 'ip', 'hwid']) &&
-             hasRequiredFields(['candidateId', 'role', 'deviceId', 'timestamp']) &&
+             hasRequiredFields(['candidateId', 'deviceId', 'timestamp']) &&
              isValidString('candidateId', 1, 100) &&
-             isValidRole(request.resource.data.role) &&
+             (!('role' in request.resource.data) || request.resource.data.role is string) &&
              isValidString('deviceId', 1, 200) &&
              request.resource.data.timestamp is timestamp &&
              (!('ip' in request.resource.data) || request.resource.data.ip is string) &&

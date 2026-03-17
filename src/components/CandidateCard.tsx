@@ -53,7 +53,6 @@ export function CandidateCard({ candidate, isSelected, onSelect }: CandidateCard
         </div>
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-white tracking-wide">{candidate.name}</h3>
-          <p className="text-sm text-blue-300/80 uppercase tracking-wider text-xs font-medium mt-1">{candidate.role}</p>
         </div>
         {isSelected && !isPaused && (
           <motion.div

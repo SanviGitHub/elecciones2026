@@ -2,25 +2,15 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, getDocs, addDoc, serverTimestamp, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Candidate, Role, Settings } from '../types';
+import { Candidate, Settings } from '../types';
 import { getDeviceInfo, hasVoted, markAsVoted, clearVotedStatus } from '../utils/device';
 import { CandidateCard } from '../components/CandidateCard';
 import { Loader2, CheckCircle, AlertCircle, Clock, Construction, Info, ShieldCheck, HelpCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const ROLES: { id: Role; title: string }[] = [
-  { id: 'DELEGADO', title: 'Delegado' },
-  { id: 'SUBDELEGADO', title: 'Subdelegado' },
-  { id: 'TERCER_DELEGADO', title: 'Tercer Delegado' },
-];
-
 export function VotingPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [selections, setSelections] = useState<Record<Role, string | null>>({
-    DELEGADO: null,
-    SUBDELEGADO: null,
-    TERCER_DELEGADO: null,
-  });
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,14 +106,13 @@ export function VotingPage() {
     }
   }, [voted, verifyingVote]);
 
-  const handleSelect = (role: Role, candidateId: string) => {
-    setSelections((prev) => ({ ...prev, [role]: candidateId }));
+  const handleSelect = (candidateId: string) => {
+    setSelectedCandidateId(candidateId);
   };
 
   const handleSubmit = async () => {
-    const allSelected = Object.values(selections).every((val) => val !== null);
-    if (!allSelected) {
-      setError('Por favor, selecciona un candidato para cada cargo.');
+    if (!selectedCandidateId) {
+      setError('Por favor, selecciona un candidato.');
       return;
     }
 
@@ -164,21 +153,17 @@ export function VotingPage() {
         console.error('Failed to fetch IP', e);
       }
 
-      // Submit all votes
-      const promises = Object.entries(selections).map(([role, candidateId]) => {
-        const voteData: any = {
-          candidateId,
-          role,
-          deviceId,
-          timestamp: serverTimestamp(),
-          ip
-        };
-        if (hwid) voteData.hwid = hwid;
+      // Submit vote
+      const voteData: any = {
+        candidateId: selectedCandidateId,
+        deviceId,
+        timestamp: serverTimestamp(),
+        ip
+      };
+      if (hwid) voteData.hwid = hwid;
 
-        return addDoc(collection(db, 'votes'), voteData);
-      });
+      await addDoc(collection(db, 'votes'), voteData);
 
-      await Promise.all(promises);
       markAsVoted();
       setVoted(true);
       toast.success('¡Voto registrado exitosamente!');
@@ -339,49 +324,46 @@ export function VotingPage() {
           <ul className="space-y-3 text-blue-100/80 text-sm sm:text-base">
             <li className="flex items-start gap-3">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 font-bold text-xs border border-blue-400/20">1</span>
-              <p>Selecciona <strong>un candidato</strong> para cada cargo disponible (Delegado, Subdelegado, etc.).</p>
+              <p>Selecciona <strong>un candidato</strong> de la lista general.</p>
             </li>
             <li className="flex items-start gap-3">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 font-bold text-xs border border-blue-400/20">2</span>
-              <p>Los candidatos marcados como <strong className="text-blue-300">Congelados</strong> no pueden recibir votos en este momento.</p>
+              <p>El candidato más votado será Delegado, el segundo Subdelegado y el tercero Tercer Delegado.</p>
             </li>
             <li className="flex items-start gap-3">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 font-bold text-xs border border-blue-400/20">3</span>
+              <p>Los candidatos marcados como <strong className="text-blue-300">Congelados</strong> no pueden recibir votos en este momento.</p>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 font-bold text-xs border border-blue-400/20">4</span>
               <p>Revisa tu selección y haz clic en <strong>Confirmar Voto</strong> al final de la página.</p>
             </li>
           </ul>
         </motion.section>
 
         <div className="space-y-12">
-          {ROLES.map((roleObj, index) => {
-            const roleCandidates = candidates.filter((c) => c.role === roleObj.id);
-            
-            return (
-              <motion.section 
-                key={roleObj.id}
-                initial={{ y: 30, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: index * 0.15, type: "spring", stiffness: 100 }}
-                className="rounded-[2rem] glass-panel p-6 sm:p-10"
-              >
-                <h2 className="mb-8 text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">{roleObj.title}</h2>
-                {roleCandidates.length === 0 ? (
-                  <p className="text-blue-200/60 italic">No hay candidatos registrados para este cargo.</p>
-                ) : (
-                  <div className="grid gap-5 sm:grid-cols-2">
-                    {roleCandidates.map((candidate) => (
-                      <CandidateCard
-                        key={candidate.id}
-                        candidate={candidate}
-                        isSelected={selections[roleObj.id] === candidate.id}
-                        onSelect={(id) => handleSelect(roleObj.id, id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </motion.section>
-            );
-          })}
+          <motion.section 
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.15, type: "spring", stiffness: 100 }}
+            className="rounded-[2rem] glass-panel p-6 sm:p-10"
+          >
+            <h2 className="mb-8 text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">Candidatos</h2>
+            {candidates.length === 0 ? (
+              <p className="text-blue-200/60 italic">No hay candidatos registrados.</p>
+            ) : (
+              <div className="grid gap-5 sm:grid-cols-2">
+                {candidates.map((candidate) => (
+                  <CandidateCard
+                    key={candidate.id}
+                    candidate={candidate}
+                    isSelected={selectedCandidateId === candidate.id}
+                    onSelect={handleSelect}
+                  />
+                ))}
+              </div>
+            )}
+          </motion.section>
         </div>
 
         <AnimatePresence>
@@ -407,7 +389,7 @@ export function VotingPage() {
           <div className="mx-auto max-w-3xl">
             <button
               onClick={handleSubmit}
-              disabled={submitting || !Object.values(selections).every(Boolean)}
+              disabled={submitting || !selectedCandidateId}
               className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600/90 to-violet-600/90 px-8 py-5 text-xl font-bold text-white shadow-[0_0_40px_rgba(79,70,229,0.4)] transition-all hover:scale-[1.02] hover:shadow-[0_0_60px_rgba(79,70,229,0.6)] disabled:pointer-events-none disabled:opacity-50 backdrop-blur-md border border-white/10"
             >
               {submitting ? (
