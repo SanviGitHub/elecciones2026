@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { Candidate, Vote, Settings, AuditLog } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, PieChart, Pie, Legend } from 'recharts';
 import { motion } from 'motion/react';
-import { Loader2, Users, Plus, Trash2, Settings as SettingsIcon, ShieldAlert, Power, Pause, Play, Download, Activity, PieChart as PieChartIcon, BarChart3 } from 'lucide-react';
+import { Loader2, Users, Plus, Trash2, Settings as SettingsIcon, ShieldAlert, Power, Pause, Play, Download, Activity, PieChart as PieChartIcon, BarChart3, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -17,7 +17,9 @@ export function AdminPage() {
     maintenanceMode: false,
     restrictionMode: 'light',
     votingOpenTime: null,
-    votingCloseTime: null
+    votingCloseTime: null,
+    votingEnded: false,
+    totalStudents: 30
   });
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -327,7 +329,9 @@ export function AdminPage() {
             </div>
             <div>
               <p className="text-sm text-blue-200/60 uppercase tracking-wider font-semibold">Total Votantes</p>
-              <p className="text-3xl font-extrabold text-white drop-shadow-md">{totalVoters}</p>
+              <p className="text-3xl font-extrabold text-white drop-shadow-md">
+                {totalVoters} <span className="text-xl text-blue-200/60">/ {settings.totalStudents || 30}</span>
+              </p>
             </div>
           </div>
         </header>
@@ -352,6 +356,30 @@ export function AdminPage() {
                   >
                     <Power className="h-5 w-5" />
                   </button>
+                </div>
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <div>
+                    <p className="font-bold text-white">Finalizar Votación</p>
+                    <p className="text-xs text-blue-200/60">Cierra la elección y muestra ganadores</p>
+                  </div>
+                  <button 
+                    onClick={() => handleUpdateSettings({ votingEnded: !settings.votingEnded })}
+                    className={`p-3 rounded-xl transition-colors ${settings.votingEnded ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white'}`}
+                  >
+                    <Flag className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <div>
+                    <p className="font-bold text-white">Total de Alumnos</p>
+                    <p className="text-xs text-blue-200/60">Para calcular participación</p>
+                  </div>
+                  <input 
+                    type="number" 
+                    value={settings.totalStudents || 30}
+                    onChange={(e) => handleUpdateSettings({ totalStudents: parseInt(e.target.value) || 0 })}
+                    className="w-24 rounded-xl px-3 py-2 glass-input text-sm text-center"
+                  />
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
                   <div>

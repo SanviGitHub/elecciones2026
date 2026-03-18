@@ -357,6 +357,94 @@ export function VotingPage() {
 
   const resultsData = getResults();
   const totalVotes = votes.length;
+  const totalStudents = settings.totalStudents || 30;
+  const participationPct = totalStudents > 0 ? Math.round((totalVotes / totalStudents) * 100) : 0;
+
+  if (settings.votingEnded) {
+    return (
+      <div className="min-h-screen px-4 py-12 pb-32 text-white sm:px-6 lg:px-8 relative z-10">
+        <div className="mx-auto max-w-4xl">
+          <header className="mb-12 text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 20 }}
+              className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.3)]"
+            >
+              <Trophy className="h-10 w-10" />
+            </motion.div>
+            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-blue-400 drop-shadow-sm">Elección Finalizada</h1>
+            <p className="mt-4 text-xl text-blue-200/80">Estos son los representantes definitivos de 2do 4ta.</p>
+          </header>
+
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="mb-12 rounded-[2rem] glass-panel p-8 text-center border-t-4 border-t-blue-500"
+          >
+            <h2 className="text-2xl font-bold mb-2 text-white">Participación Final</h2>
+            <p className="text-6xl font-extrabold text-white my-4 drop-shadow-lg">{totalVotes} <span className="text-3xl text-blue-200/60">/ {totalStudents}</span></p>
+            <p className="text-blue-200/80 text-lg">Alumnos votaron ({participationPct}%)</p>
+          </motion.div>
+
+          {resultsData.length > 0 && (
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="rounded-[2rem] glass-panel p-6 sm:p-10 mb-12"
+            >
+              <h3 className="text-2xl font-bold text-white mb-8 text-center">Resultados Oficiales</h3>
+              <div className="grid gap-6 sm:grid-cols-3">
+                {resultsData.slice(0, 3).map((res, idx) => {
+                  const titles = ['Delegado', 'Subdelegado', 'Tercer Delegado'];
+                  const colors = ['text-yellow-400', 'text-gray-300', 'text-amber-600'];
+                  const bgColors = ['bg-yellow-500/10 border-yellow-500/30', 'bg-gray-400/10 border-gray-400/30', 'bg-amber-600/10 border-amber-600/30'];
+                  const percentage = totalVotes > 0 ? ((res.votos / totalVotes) * 100).toFixed(1) : '0';
+
+                  return (
+                    <div key={idx} className={`rounded-3xl border p-6 text-center relative overflow-hidden flex flex-col justify-center ${bgColors[idx] || 'bg-white/5 border-white/10'}`}>
+                      <div className="absolute top-0 left-0 w-full h-1.5 bg-white/10">
+                        <div className={`h-full ${colors[idx] ? colors[idx].replace('text-', 'bg-') : 'bg-blue-400'}`} style={{ width: `${percentage}%` }}></div>
+                      </div>
+                      <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-black/20 ${colors[idx] || 'text-blue-400'}`}>
+                        <span className="text-2xl font-black">{idx + 1}º</span>
+                      </div>
+                      <p className={`text-sm font-bold uppercase tracking-widest mb-2 ${colors[idx] || 'text-blue-400'}`}>
+                        {titles[idx] || `Puesto ${idx + 1}`}
+                      </p>
+                      <p className="text-3xl font-bold text-white truncate mb-4">{res.name}</p>
+                      <div className="mt-auto flex items-center justify-center gap-2 bg-black/20 py-2 rounded-xl">
+                        <span className="text-xl font-mono text-white font-bold">{res.votos}</span>
+                        <span className="text-xs text-blue-200/60 uppercase">votos</span>
+                        <span className="text-sm font-bold text-white ml-2">({percentage}%)</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="rounded-[2rem] glass-panel p-8 border-l-4 border-l-emerald-500"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Info className="h-6 w-6 text-emerald-400" />
+              <h3 className="text-xl font-bold text-white">¿Qué significan estos resultados?</h3>
+            </div>
+            <p className="text-blue-100/80 leading-relaxed text-lg">
+              De acuerdo a la cantidad de votos obtenidos y las reglas establecidas, los cargos han sido asignados automáticamente. El candidato con mayor cantidad de votos asume como <strong className="text-white">Delegado</strong>, el segundo lugar como <strong className="text-white">Subdelegado</strong> y el tercer lugar como <strong className="text-white">Tercer Delegado</strong>. ¡Gracias a todos por participar en este proceso democrático!
+            </p>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
 
   const LiveResultsSection = (
     <motion.section 
@@ -399,8 +487,8 @@ export function VotingPage() {
         <div className="rounded-[2rem] glass-panel p-6 border-l-4 border-l-blue-500 flex flex-col justify-center items-center text-center">
           <Users className="h-10 w-10 text-blue-400 mb-3" />
           <h3 className="text-lg font-medium text-blue-200/80 uppercase tracking-widest">Participación Total</h3>
-          <p className="text-6xl font-extrabold text-white mt-2 drop-shadow-lg">{totalVotes}</p>
-          <p className="text-sm text-blue-200/60 mt-2">votos emitidos hasta ahora</p>
+          <p className="text-6xl font-extrabold text-white mt-2 drop-shadow-lg">{totalVotes} <span className="text-3xl text-blue-200/60">/ {totalStudents}</span></p>
+          <p className="text-sm text-blue-200/60 mt-2">alumnos han votado ({participationPct}%)</p>
         </div>
       </div>
 

@@ -21,6 +21,8 @@ export interface Settings {
   restrictionMode: 'strict' | 'light';
   votingOpenTime: any | null; // Firebase Timestamp
   votingCloseTime: any | null; // Firebase Timestamp
+  votingEnded?: boolean;
+  totalStudents?: number;
 }
 
 export interface AuditLog {
