@@ -55,7 +55,11 @@ export function AdminPage() {
 
     const unsubLogs = onSnapshot(collection(db, 'auditLogs'), (snapshot) => {
       const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as AuditLog[];
-      setAuditLogs(data.sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)));
+      setAuditLogs(data.sort((a, b) => {
+        const timeA = a.timestamp?.toMillis?.() || (a.timestamp instanceof Date ? a.timestamp.getTime() : 0);
+        const timeB = b.timestamp?.toMillis?.() || (b.timestamp instanceof Date ? b.timestamp.getTime() : 0);
+        return timeB - timeA;
+      }));
       setLoading(false);
     });
 
@@ -469,7 +473,11 @@ export function AdminPage() {
             <h2 className="mb-6 text-2xl font-bold text-white tracking-tight">Votos Recientes</h2>
             <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar max-h-[350px]">
               {votes.length === 0 ? <p className="text-blue-200/60 italic">No hay votos registrados.</p> : (
-                votes.slice().sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)).slice(0, 50).map((vote) => {
+                votes.slice().sort((a, b) => {
+                  const timeA = a.timestamp?.toMillis?.() || (a.timestamp instanceof Date ? a.timestamp.getTime() : 0);
+                  const timeB = b.timestamp?.toMillis?.() || (b.timestamp instanceof Date ? b.timestamp.getTime() : 0);
+                  return timeB - timeA;
+                }).slice(0, 50).map((vote) => {
                   const candidate = candidates.find(c => c.id === vote.candidateId);
                   return (
                     <div key={vote.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-colors">

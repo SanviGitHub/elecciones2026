@@ -8,31 +8,55 @@ export async function getDeviceInfo(): Promise<{ deviceId: string; hwid: string 
   let hwid: string | null = null;
   
   try {
-    const fp = await fpPromise.load();
-    const result = await fp.get();
+    // Add a timeout to prevent hanging on mobile browsers with strict privacy
+    const fpPromiseWithTimeout = Promise.race([
+      fpPromise.load().then(fp => fp.get()),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Fingerprint timeout')), 3000))
+    ]);
+    
+    const result = await fpPromiseWithTimeout as any;
     hwid = `fp-${result.visitorId}`;
   } catch (e) {
-    console.error('Fingerprint failed', e);
+    console.error('Fingerprint failed or timed out', e);
   }
 
   // Light mode or fallback
-  let deviceId = localStorage.getItem(DEVICE_ID_KEY);
-  if (!deviceId) {
-    deviceId = `ls-${uuidv4()}`;
-    localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  let deviceId = `ls-${uuidv4()}`;
+  try {
+    const stored = localStorage.getItem(DEVICE_ID_KEY);
+    if (stored) {
+      deviceId = stored;
+    } else {
+      localStorage.setItem(DEVICE_ID_KEY, deviceId);
+    }
+  } catch (e) {
+    console.warn('LocalStorage not available', e);
   }
   
   return { deviceId, hwid };
 }
 
 export function hasVoted(): boolean {
-  return localStorage.getItem(HAS_VOTED_KEY) === 'true';
+  try {
+    return localStorage.getItem(HAS_VOTED_KEY) === 'true';
+  } catch (e) {
+    console.warn('LocalStorage not available', e);
+    return false;
+  }
 }
 
 export function markAsVoted(): void {
-  localStorage.setItem(HAS_VOTED_KEY, 'true');
+  try {
+    localStorage.setItem(HAS_VOTED_KEY, 'true');
+  } catch (e) {
+    console.warn('LocalStorage not available', e);
+  }
 }
 
 export function clearVotedStatus(): void {
-  localStorage.removeItem(HAS_VOTED_KEY);
+  try {
+    localStorage.removeItem(HAS_VOTED_KEY);
+  } catch (e) {
+    console.warn('LocalStorage not available', e);
+  }
 }

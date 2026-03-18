@@ -38,9 +38,31 @@ export function VotingPage() {
           votingCloseTime: null
         });
       }
+    }, (error) => {
+      console.error("Error loading settings:", error);
+      // Fallback to allow the app to load even if settings fail
+      setSettings({
+        maintenanceMode: false,
+        restrictionMode: 'light',
+        votingOpenTime: null,
+        votingCloseTime: null
+      });
     });
 
-    return () => unsubSettings();
+    // Fallback timeout for settings
+    const settingsTimeout = setTimeout(() => {
+      setSettings(prev => prev || {
+        maintenanceMode: false,
+        restrictionMode: 'light',
+        votingOpenTime: null,
+        votingCloseTime: null
+      });
+    }, 3000);
+
+    return () => {
+      unsubSettings();
+      clearTimeout(settingsTimeout);
+    };
   }, []);
 
   useEffect(() => {
@@ -51,28 +73,39 @@ export function VotingPage() {
       }
       
       try {
-        const { deviceId, hwid } = await getDeviceInfo();
-        
-        let hasVotedDb = false;
-        if (settings?.restrictionMode === 'strict' && hwid) {
-          const qHwid = query(collection(db, 'votes'), where('hwid', '==', hwid));
-          const existingHwid = await getDocs(qHwid);
-          if (!existingHwid.empty) hasVotedDb = true;
-        }
-        
-        if (!hasVotedDb) {
-          const qDevice = query(collection(db, 'votes'), where('deviceId', '==', deviceId));
-          const existingDevice = await getDocs(qDevice);
-          if (!existingDevice.empty) hasVotedDb = true;
-        }
-        
-        if (!hasVotedDb) {
-          // Admin purged this device's vote
-          clearVotedStatus();
-          setVoted(false);
-        }
+        // Add a 5 second timeout to the entire verification process
+        const verificationPromise = (async () => {
+          const { deviceId, hwid } = await getDeviceInfo();
+          
+          let hasVotedDb = false;
+          if (settings?.restrictionMode === 'strict' && hwid) {
+            const qHwid = query(collection(db, 'votes'), where('hwid', '==', hwid));
+            const existingHwid = await getDocs(qHwid);
+            if (!existingHwid.empty) hasVotedDb = true;
+          }
+          
+          if (!hasVotedDb) {
+            const qDevice = query(collection(db, 'votes'), where('deviceId', '==', deviceId));
+            const existingDevice = await getDocs(qDevice);
+            if (!existingDevice.empty) hasVotedDb = true;
+          }
+          
+          if (!hasVotedDb) {
+            // Admin purged this device's vote
+            clearVotedStatus();
+            setVoted(false);
+          }
+        })();
+
+        await Promise.race([
+          verificationPromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Verification timeout')), 5000))
+        ]);
       } catch (e) {
         console.error("Error verifying vote status", e);
+        // If it times out or fails, we assume they haven't voted if we couldn't verify,
+        // but since they have the local flag, we'll keep it to be safe, or we could clear it.
+        // Let's keep the local flag to prevent double voting if offline.
       } finally {
         setVerifyingVote(false);
       }
@@ -84,27 +117,35 @@ export function VotingPage() {
   }, [voted, settings]);
 
   useEffect(() => {
-    async function fetchCandidates() {
-      try {
-        const snapshot = await getDocs(collection(db, 'candidates'));
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Candidate[];
-        setCandidates(data);
-      } catch (err) {
-        console.error('Error fetching candidates:', err);
-        setError('Error al cargar los candidatos. Revisa tu conexión.');
-      } finally {
-        setLoading(false);
-      }
+    if (verifyingVote) return;
+    
+    if (voted) {
+      setLoading(false);
+      return;
     }
 
-    if (!voted && !verifyingVote) {
-      fetchCandidates();
-    } else if (!verifyingVote) {
+    const unsubCandidates = onSnapshot(collection(db, 'candidates'), (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Candidate[];
+      setCandidates(data);
       setLoading(false);
-    }
+    }, (err) => {
+      console.error('Error fetching candidates:', err);
+      setError('Error al cargar los candidatos. Revisa tu conexión.');
+      setLoading(false);
+    });
+
+    // Fallback timeout to ensure loading state is cleared even if Firestore is slow/blocked
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
+
+    return () => {
+      unsubCandidates();
+      clearTimeout(loadingTimeout);
+    };
   }, [voted, verifyingVote]);
 
   const handleSelect = (candidateId: string) => {
@@ -209,8 +250,16 @@ export function VotingPage() {
     );
   }
 
-  const openTime = settings.votingOpenTime?.toMillis ? settings.votingOpenTime.toMillis() : null;
-  const closeTime = settings.votingCloseTime?.toMillis ? settings.votingCloseTime.toMillis() : null;
+  const getMillis = (time: any) => {
+    if (!time) return null;
+    if (typeof time.toMillis === 'function') return time.toMillis();
+    if (time instanceof Date) return time.getTime();
+    if (typeof time === 'number') return time;
+    return null;
+  };
+
+  const openTime = getMillis(settings.votingOpenTime);
+  const closeTime = getMillis(settings.votingCloseTime);
   const isBeforeOpen = openTime && now.getTime() < openTime;
   const isAfterClose = closeTime && now.getTime() > closeTime;
 
