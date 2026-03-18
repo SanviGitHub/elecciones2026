@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { Candidate, Settings } from '../types';
 import { getDeviceInfo, hasVoted, markAsVoted, clearVotedStatus } from '../utils/device';
 import { CandidateCard } from '../components/CandidateCard';
-import { Loader2, CheckCircle, AlertCircle, Clock, Construction, Info, ShieldCheck, HelpCircle, Search } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Clock, Construction, Info, ShieldCheck, HelpCircle, Search, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function VotingPage() {
@@ -19,6 +19,13 @@ export function VotingPage() {
   const [verifyingVote, setVerifyingVote] = useState(true);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [now, setNow] = useState(new Date());
+  const [termsAccepted, setTermsAccepted] = useState(() => {
+    try {
+      return localStorage.getItem('school_election_terms_accepted') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -336,6 +343,47 @@ export function VotingPage() {
           <p className="text-blue-100/80 text-lg leading-relaxed">
             Tu voto ha sido guardado exitosamente. Gracias por participar en las elecciones de 2do 4ta.
           </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (!termsAccepted) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          className="flex max-w-md flex-col items-center rounded-[2rem] glass-panel p-10"
+        >
+          <div className="mb-6 rounded-full bg-blue-500/20 p-5 text-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+            <FileText className="h-16 w-16" />
+          </div>
+          <h1 className="mb-4 text-3xl font-extrabold tracking-tight text-white">Términos y Condiciones</h1>
+          <p className="text-blue-100/80 text-base mb-6">
+            Antes de continuar y emitir tu voto, debes leer y aceptar nuestros términos y condiciones.
+          </p>
+          <a 
+            href="https://terms.linkyhost.com/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline underline-offset-4 mb-8 font-medium transition-colors"
+          >
+            Leer Términos y Condiciones (PDF)
+          </a>
+          <button
+            onClick={() => {
+              try {
+                localStorage.setItem('school_election_terms_accepted', 'true');
+              } catch (e) {
+                console.warn('LocalStorage not available', e);
+              }
+              setTermsAccepted(true);
+            }}
+            className="w-full rounded-xl bg-blue-600 px-6 py-4 font-bold text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-500 hover:scale-[1.02] active:scale-95"
+          >
+            Aceptar y Continuar
+          </button>
         </motion.div>
       </div>
     );
