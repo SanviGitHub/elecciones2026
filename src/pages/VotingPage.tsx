@@ -165,6 +165,13 @@ export function VotingPage() {
   }, [verifyingVote]);
 
   const handleSelect = (candidateId: string) => {
+    if (voted) {
+      toast.error('Ya has votado.\nCualquier problema comunicarse con la Dirección de Sanvy Studios.', {
+        duration: 5000,
+        style: { maxWidth: '500px', textAlign: 'center' }
+      });
+      return;
+    }
     setSelectedCandidateId(candidateId);
   };
 
@@ -532,10 +539,10 @@ export function VotingPage() {
               <BarChart3 className="h-5 w-5 text-blue-400" />
               <h3 className="text-lg font-bold text-white">Votos por Candidato</h3>
             </div>
-            <div className="h-[300px] w-full">
+            <div className="h-[350px] sm:h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={resultsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="name" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={{ stroke: '#374151' }} />
+                <BarChart data={resultsData} margin={{ top: 10, right: 10, left: -20, bottom: 40 }}>
+                  <XAxis dataKey="name" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 10, angle: -45, textAnchor: 'end' }} axisLine={{ stroke: '#374151' }} interval={0} />
                   <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={{ stroke: '#374151' }} allowDecimals={false} />
                   <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ backgroundColor: 'rgba(10,10,10,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }} />
                   <Bar dataKey="votos" radius={[4, 4, 0, 0]}>
@@ -551,15 +558,15 @@ export function VotingPage() {
               <PieChartIcon className="h-5 w-5 text-purple-400" />
               <h3 className="text-lg font-bold text-white">Distribución Porcentual</h3>
             </div>
-            <div className="h-[300px] w-full">
+            <div className="h-[350px] sm:h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={resultsData}
                     cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
+                    cy="45%"
+                    innerRadius="40%"
+                    outerRadius="70%"
                     paddingAngle={5}
                     dataKey="votos"
                     stroke="none"
@@ -569,7 +576,7 @@ export function VotingPage() {
                     ))}
                   </Pie>
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(10,10,10,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }} />
-                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '20px' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -578,36 +585,6 @@ export function VotingPage() {
       )}
     </motion.section>
   );
-
-  if (voted) {
-    return (
-      <div className="min-h-screen px-4 py-12 pb-32 text-white sm:px-6 lg:px-8 relative z-10">
-        <div className="mx-auto max-w-4xl">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            className="flex flex-col items-center rounded-[2rem] glass-panel p-10 text-center mb-12"
-          >
-            <motion.div 
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring" }}
-              className="mb-6 rounded-full bg-green-500/20 p-5 text-green-400 shadow-[0_0_30px_rgba(74,222,128,0.3)]"
-            >
-              <CheckCircle className="h-16 w-16" />
-            </motion.div>
-            <h1 className="mb-3 text-4xl font-extrabold tracking-tight text-white drop-shadow-md">¡Voto Registrado!</h1>
-            <p className="text-blue-100/80 text-lg leading-relaxed max-w-lg">
-              Tu voto ha sido guardado exitosamente. Gracias por participar en las elecciones de 2do 4ta.
-            </p>
-          </motion.div>
-
-          {LiveResultsSection}
-        </div>
-      </div>
-    );
-  }
 
   if (!termsAccepted) {
     return (
@@ -654,6 +631,19 @@ export function VotingPage() {
     <div className="min-h-screen px-4 py-12 pb-32 text-white sm:px-6 lg:px-8 relative z-10">
       <div className="mx-auto max-w-3xl">
         <header className="mb-16 text-center relative">
+          {voted && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 rounded-2xl bg-green-500/10 border border-green-500/20 p-4 flex flex-col sm:flex-row items-center justify-center gap-4"
+            >
+              <CheckCircle className="h-8 w-8 text-green-400 flex-shrink-0" />
+              <div className="text-center sm:text-left">
+                <h3 className="text-green-400 font-bold text-lg">¡Ya has votado!</h3>
+                <p className="text-green-200/80 text-sm">Tu voto ha sido registrado correctamente. Puedes ver los resultados en vivo a continuación.</p>
+              </div>
+            </motion.div>
+          )}
           <motion.div
             initial={{ y: -30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -790,6 +780,9 @@ export function VotingPage() {
                 <p className="mb-6 text-blue-200/80">
                   Estás a punto de votar por <strong className="text-white">{candidates.find(c => c.id === selectedCandidateId)?.name}</strong>. Esta acción no se puede deshacer. ¿Estás seguro?
                 </p>
+                <p className="mb-6 text-xs text-blue-200/60">
+                  Al hacer clic en "Sí, confirmar", aceptas el <a href="https://terms.linkyhost.com/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline transition-colors">Contrato de Términos & Políticas de la web</a>.
+                </p>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button
                     onClick={() => setShowConfirmModal(false)}
@@ -824,7 +817,7 @@ export function VotingPage() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {selectedCandidateId && (
+          {selectedCandidateId && !voted && (
             <motion.div 
               className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
               initial={{ y: 100, opacity: 0, scale: 0.9 }}
@@ -876,6 +869,9 @@ export function VotingPage() {
           <p className="mt-6 text-xs text-blue-200/30 font-mono tracking-widest uppercase">
             Powered by Sanvy Studios © {new Date().getFullYear()}
           </p>
+          <a href="https://terms.linkyhost.com/" target="_blank" rel="noopener noreferrer" className="mt-4 inline-block text-xs text-blue-200/40 hover:text-blue-200/60 transition-colors underline underline-offset-2">
+            Términos y Condiciones: https://terms.linkyhost.com/
+          </a>
         </motion.footer>
       </div>
     </div>
