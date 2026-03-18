@@ -5,11 +5,12 @@ import { db } from '../firebase';
 import { Candidate, Settings } from '../types';
 import { getDeviceInfo, hasVoted, markAsVoted, clearVotedStatus } from '../utils/device';
 import { CandidateCard } from '../components/CandidateCard';
-import { Loader2, CheckCircle, AlertCircle, Clock, Construction, Info, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Clock, Construction, Info, ShieldCheck, HelpCircle, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function VotingPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -175,6 +176,10 @@ export function VotingPage() {
       setSubmitting(false);
     }
   };
+
+  const filteredCandidates = candidates.filter(candidate =>
+    candidate.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading || !settings) {
     return (
@@ -348,12 +353,30 @@ export function VotingPage() {
             transition={{ delay: 0.15, type: "spring", stiffness: 100 }}
             className="rounded-[2rem] glass-panel p-6 sm:p-10"
           >
-            <h2 className="mb-8 text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">Candidatos</h2>
-            {candidates.length === 0 ? (
-              <p className="text-blue-200/60 italic">No hay candidatos registrados.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+              <h2 className="text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">Candidatos</h2>
+              
+              <div className="relative w-full sm:w-72">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-blue-400/50" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar candidato..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl bg-white/5 border border-white/10 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-blue-200/50 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all outline-none"
+                />
+              </div>
+            </div>
+
+            {filteredCandidates.length === 0 ? (
+              <p className="text-blue-200/60 italic">
+                {searchQuery ? 'No se encontraron candidatos con ese nombre.' : 'No hay candidatos registrados.'}
+              </p>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2">
-                {candidates.map((candidate) => (
+                {filteredCandidates.map((candidate) => (
                   <CandidateCard
                     key={candidate.id}
                     candidate={candidate}
