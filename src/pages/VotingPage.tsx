@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, getDocs, addDoc, serverTimestamp, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -18,6 +18,7 @@ export function VotingPage() {
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [voted, setVoted] = useState(hasVoted());
   const [verifyingVote, setVerifyingVote] = useState(true);
@@ -184,11 +185,13 @@ export function VotingPage() {
   };
 
   const handleSubmit = async () => {
+    if (isSubmittingRef.current) return;
     if (!selectedCandidateId) {
       setError('Por favor, selecciona un candidato.');
       return;
     }
 
+    isSubmittingRef.current = true;
     setSubmitting(true);
     setError(null);
     setShowConfirmModal(false);
@@ -214,6 +217,7 @@ export function VotingPage() {
         markAsVoted();
         setVoted(true);
         setSubmitting(false);
+        isSubmittingRef.current = false;
         return;
       }
 
@@ -247,6 +251,7 @@ export function VotingPage() {
       toast.error('Error al registrar el voto');
     } finally {
       setSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
