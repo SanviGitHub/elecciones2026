@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Candidate, Vote, Settings, AuditLog } from '../types';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, PieChart, Pie, Legend } from 'recharts';
 import { motion } from 'motion/react';
-import { Loader2, Users, Plus, Trash2, Settings as SettingsIcon, ShieldAlert, Power, Pause, Play, Download } from 'lucide-react';
+import { Loader2, Users, Plus, Trash2, Settings as SettingsIcon, ShieldAlert, Power, Pause, Play, Download, Activity, PieChart as PieChartIcon, BarChart3 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -130,8 +130,24 @@ export function AdminPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center relative z-10">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-400" />
+      <div className="min-h-screen px-4 py-12 text-white sm:px-6 lg:px-8 relative z-10">
+        <div className="mx-auto max-w-7xl animate-pulse">
+          <div className="mb-12 flex flex-col items-center justify-between gap-6 sm:flex-row">
+            <div className="space-y-4">
+              <div className="h-10 w-48 rounded-lg bg-white/10"></div>
+              <div className="h-6 w-64 rounded-lg bg-white/5"></div>
+            </div>
+            <div className="h-24 w-48 rounded-3xl bg-white/10"></div>
+          </div>
+          <div className="mb-8 grid gap-8 lg:grid-cols-3">
+            <div className="h-64 rounded-[2rem] bg-white/5 lg:col-span-2"></div>
+            <div className="h-64 rounded-[2rem] bg-white/5"></div>
+          </div>
+          <div className="mb-16 grid gap-8 lg:grid-cols-3">
+            <div className="h-96 rounded-[2rem] bg-white/5 lg:col-span-1"></div>
+            <div className="h-96 rounded-[2rem] bg-white/5 lg:col-span-2"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -142,6 +158,19 @@ export function AdminPage() {
       return { name: candidate.name, votos: voteCount };
     });
     return results.sort((a, b) => b.votos - a.votos);
+  };
+
+  const getTimelineData = () => {
+    // Group votes by hour
+    const timeline: Record<string, number> = {};
+    votes.forEach(v => {
+      const date = v.timestamp?.toDate ? v.timestamp.toDate() : (v.timestamp instanceof Date ? v.timestamp : new Date());
+      const hour = format(date, 'HH:00');
+      timeline[hour] = (timeline[hour] || 0) + 1;
+    });
+    return Object.entries(timeline)
+      .map(([time, count]) => ({ time, count }))
+      .sort((a, b) => a.time.localeCompare(b.time));
   };
 
   const totalVoters = new Set(votes.map((v) => v.deviceId)).size;
@@ -281,9 +310,15 @@ export function AdminPage() {
       <div className="mx-auto max-w-7xl">
         <header className="mb-12 flex flex-col items-center justify-between gap-6 sm:flex-row">
           <div>
-            <h1 className="bg-gradient-to-br from-blue-300 via-white to-violet-300 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl drop-shadow-sm">
-              God Mode
-            </h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="bg-gradient-to-br from-blue-300 via-white to-violet-300 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl drop-shadow-sm">
+                God Mode
+              </h1>
+              <div className="flex items-center gap-1.5 rounded-full bg-red-500/10 px-3 py-1 border border-red-500/20">
+                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse"></div>
+                <span className="text-xs font-bold text-red-400 uppercase tracking-widest">Live</span>
+              </div>
+            </div>
             <p className="mt-3 text-lg text-blue-200/80 font-medium tracking-wide">Panel de Control Avanzado</p>
           </div>
           <div className="flex items-center gap-4 rounded-3xl glass-panel px-8 py-5">
@@ -503,9 +538,12 @@ export function AdminPage() {
         </div>
 
         {/* Results Charts */}
-        <div className="grid gap-8 lg:grid-cols-1">
-          <motion.section initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="rounded-[2rem] glass-panel p-6 sm:p-10">
-            <h2 className="mb-8 text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">Resultados Generales</h2>
+        <div className="grid gap-8 lg:grid-cols-2">
+          <motion.section initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="rounded-[2rem] glass-panel p-6 sm:p-10 lg:col-span-2">
+            <div className="flex items-center gap-3 mb-8">
+              <BarChart3 className="text-blue-400 h-8 w-8" />
+              <h2 className="text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">Resultados Generales</h2>
+            </div>
             
             {(() => {
               const data = getResults();
@@ -547,6 +585,61 @@ export function AdminPage() {
                 </>
               );
             })()}
+          </motion.section>
+
+          <motion.section initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="rounded-[2rem] glass-panel p-6 sm:p-10">
+            <div className="flex items-center gap-3 mb-8">
+              <PieChartIcon className="text-purple-400 h-7 w-7" />
+              <h2 className="text-xl font-bold text-white tracking-tight drop-shadow-sm">Distribución de Votos</h2>
+            </div>
+            <div className="h-[300px] w-full">
+              {getResults().length === 0 ? (
+                <p className="text-blue-200/60 italic flex h-full items-center justify-center">No hay datos</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={getResults()}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="votos"
+                      stroke="none"
+                    >
+                      {getResults().map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(10,10,10,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }} />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </motion.section>
+
+          <motion.section initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="rounded-[2rem] glass-panel p-6 sm:p-10">
+            <div className="flex items-center gap-3 mb-8">
+              <Activity className="text-emerald-400 h-7 w-7" />
+              <h2 className="text-xl font-bold text-white tracking-tight drop-shadow-sm">Actividad en el Tiempo</h2>
+            </div>
+            <div className="h-[300px] w-full">
+              {getTimelineData().length === 0 ? (
+                <p className="text-blue-200/60 italic flex h-full items-center justify-center">No hay datos</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={getTimelineData()} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                    <XAxis dataKey="time" stroke="#9ca3af" tick={{ fill: '#9ca3af' }} axisLine={{ stroke: '#374151' }} />
+                    <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af' }} axisLine={{ stroke: '#374151' }} allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(10,10,10,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }} />
+                    <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
           </motion.section>
         </div>
       </div>

@@ -19,6 +19,7 @@ export function VotingPage() {
   const [verifyingVote, setVerifyingVote] = useState(true);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [now, setNow] = useState(new Date());
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(() => {
     try {
       return localStorage.getItem('school_election_terms_accepted') === 'true';
@@ -159,6 +160,14 @@ export function VotingPage() {
     setSelectedCandidateId(candidateId);
   };
 
+  const handlePreSubmit = () => {
+    if (!selectedCandidateId) {
+      setError('Por favor, selecciona un candidato.');
+      return;
+    }
+    setShowConfirmModal(true);
+  };
+
   const handleSubmit = async () => {
     if (!selectedCandidateId) {
       setError('Por favor, selecciona un candidato.');
@@ -167,6 +176,7 @@ export function VotingPage() {
 
     setSubmitting(true);
     setError(null);
+    setShowConfirmModal(false);
     
     try {
       const { deviceId, hwid } = await getDeviceInfo();
@@ -229,10 +239,17 @@ export function VotingPage() {
     candidate.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (loading || !settings) {
+  if (!settings) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-400" />
+      <div className="min-h-screen px-4 py-12 pb-32 text-white sm:px-6 lg:px-8 relative z-10">
+        <div className="mx-auto max-w-3xl animate-pulse">
+          <div className="mb-16 flex flex-col items-center justify-center space-y-4">
+            <div className="h-12 w-64 rounded-lg bg-white/10"></div>
+            <div className="h-6 w-96 rounded-lg bg-white/5"></div>
+          </div>
+          <div className="mb-12 h-48 rounded-[2rem] bg-white/5"></div>
+          <div className="h-96 rounded-[2rem] bg-white/5"></div>
+        </div>
       </div>
     );
   }
@@ -392,15 +409,23 @@ export function VotingPage() {
   return (
     <div className="min-h-screen px-4 py-12 pb-32 text-white sm:px-6 lg:px-8 relative z-10">
       <div className="mx-auto max-w-3xl">
-        <header className="mb-16 text-center">
+        <header className="mb-16 text-center relative">
           <motion.div
             initial={{ y: -30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
+            className="relative inline-flex flex-col items-center"
           >
-            <h1 className="bg-gradient-to-br from-blue-300 via-white to-violet-300 bg-clip-text text-5xl font-extrabold tracking-tight text-transparent sm:text-6xl drop-shadow-sm">
-              Elecciones 2do 4ta
-            </h1>
+            <div className="flex items-center gap-2 mb-4 rounded-full bg-blue-500/10 px-4 py-1.5 border border-blue-500/20">
+              <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
+              <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">Sistema en Vivo</span>
+            </div>
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-30 animate-pulse"></div>
+              <h1 className="relative bg-gradient-to-br from-white via-blue-100 to-blue-400 bg-clip-text text-5xl font-extrabold tracking-tight text-transparent sm:text-6xl drop-shadow-sm">
+                Elecciones 2do 4ta
+              </h1>
+            </div>
           </motion.div>
           <motion.p 
             initial={{ y: -20, opacity: 0 }}
@@ -453,21 +478,33 @@ export function VotingPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <h2 className="text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">Candidatos</h2>
               
-              <div className="relative w-full sm:w-72">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-blue-400/50" />
+              <div className="relative w-full sm:w-80 group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-blue-400/50 group-focus-within:text-blue-400 transition-colors" />
                 </div>
                 <input
                   type="text"
                   placeholder="Buscar candidato..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl bg-white/5 border border-white/10 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-blue-200/50 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all outline-none"
+                  className="w-full rounded-full bg-white/[0.03] border border-white/10 py-3 pl-12 pr-4 text-sm text-white placeholder:text-blue-200/40 focus:bg-white/[0.06] focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none shadow-inner"
                 />
               </div>
             </div>
 
-            {filteredCandidates.length === 0 ? (
+            {loading ? (
+              <div className="grid gap-5 sm:grid-cols-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="animate-pulse rounded-3xl bg-white/5 border border-white/10 p-6 flex items-center gap-5">
+                    <div className="h-16 w-16 rounded-full bg-white/10"></div>
+                    <div className="flex-1 space-y-3">
+                      <div className="h-4 w-3/4 rounded bg-white/10"></div>
+                      <div className="h-3 w-1/2 rounded bg-white/5"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredCandidates.length === 0 ? (
               <p className="text-blue-200/60 italic">
                 {searchQuery ? 'No se encontraron candidatos con ese nombre.' : 'No hay candidatos registrados.'}
               </p>
@@ -487,6 +524,46 @@ export function VotingPage() {
         </div>
 
         <AnimatePresence>
+          {showConfirmModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="w-full max-w-md rounded-[2rem] glass-panel p-8 text-center shadow-2xl"
+              >
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+                  <ShieldCheck className="h-8 w-8" />
+                </div>
+                <h2 className="mb-2 text-2xl font-bold text-white tracking-tight">Confirmar Voto</h2>
+                <p className="mb-6 text-blue-200/80">
+                  Estás a punto de votar por <strong className="text-white">{candidates.find(c => c.id === selectedCandidateId)?.name}</strong>. Esta acción no se puede deshacer. ¿Estás seguro?
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    onClick={() => setShowConfirmModal(false)}
+                    className="flex-1 rounded-xl bg-white/5 px-4 py-3 font-bold text-white transition-colors hover:bg-white/10"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    className="flex-1 rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-500 hover:scale-[1.02] active:scale-95"
+                  >
+                    Sí, Confirmar
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
           {error && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -500,29 +577,37 @@ export function VotingPage() {
           )}
         </AnimatePresence>
 
-        <motion.div 
-          className="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-[#0f172a]/80 p-5 backdrop-blur-2xl sm:static sm:mt-16 sm:border-none sm:bg-transparent sm:p-0 z-50"
-          initial={{ y: 100 }}
-          animate={{ y: 0 }}
-          transition={{ delay: 0.5, type: "spring", stiffness: 150 }}
-        >
-          <div className="mx-auto max-w-3xl">
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || !selectedCandidateId}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600/90 to-violet-600/90 px-8 py-5 text-xl font-bold text-white shadow-[0_0_40px_rgba(79,70,229,0.4)] transition-all hover:scale-[1.02] hover:shadow-[0_0_60px_rgba(79,70,229,0.6)] disabled:pointer-events-none disabled:opacity-50 backdrop-blur-md border border-white/10"
+        <AnimatePresence>
+          {selectedCandidateId && (
+            <motion.div 
+              className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
+              initial={{ y: 100, opacity: 0, scale: 0.9 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 100, opacity: 0, scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
             >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                  Enviando voto...
-                </>
-              ) : (
-                'Confirmar Voto'
-              )}
-            </button>
-          </div>
-        </motion.div>
+              <div className="w-full max-w-md pointer-events-auto">
+                <button
+                  onClick={handlePreSubmit}
+                  disabled={submitting}
+                  className="relative flex w-full items-center justify-center gap-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-lg font-bold text-white shadow-[0_10px_40px_-10px_rgba(79,70,229,0.8)] transition-all hover:scale-[1.02] hover:shadow-[0_10px_50px_-10px_rgba(79,70,229,1)] disabled:pointer-events-none disabled:opacity-70 backdrop-blur-xl border border-white/20 overflow-hidden group"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-6 w-6 animate-spin relative z-10" />
+                      <span className="relative z-10">Enviando voto...</span>
+                    </>
+                  ) : (
+                    <span className="relative z-10 flex items-center gap-2">
+                      Confirmar Voto <CheckCircle className="h-5 w-5" />
+                    </span>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Footer */}
         <motion.footer 
