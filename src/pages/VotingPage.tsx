@@ -2,14 +2,18 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, getDocs, addDoc, serverTimestamp, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Candidate, Settings } from '../types';
+import { Candidate, Settings, Vote } from '../types';
 import { getDeviceInfo, hasVoted, markAsVoted, clearVotedStatus } from '../utils/device';
 import { CandidateCard } from '../components/CandidateCard';
-import { Loader2, CheckCircle, AlertCircle, Clock, Construction, Info, ShieldCheck, HelpCircle, Search, FileText } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Clock, Construction, Info, ShieldCheck, HelpCircle, Search, FileText, Trophy, BarChart3, PieChart as PieChartIcon, Users, TrendingUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import toast from 'react-hot-toast';
+
+const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
 
 export function VotingPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [votes, setVotes] = useState<Vote[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,11 +130,6 @@ export function VotingPage() {
 
   useEffect(() => {
     if (verifyingVote) return;
-    
-    if (voted) {
-      setLoading(false);
-      return;
-    }
 
     const unsubCandidates = onSnapshot(collection(db, 'candidates'), (snapshot) => {
       const data = snapshot.docs.map((doc) => ({
@@ -145,6 +144,14 @@ export function VotingPage() {
       setLoading(false);
     });
 
+    const unsubVotes = onSnapshot(collection(db, 'votes'), (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Vote[];
+      setVotes(data);
+    });
+
     // Fallback timeout to ensure loading state is cleared even if Firestore is slow/blocked
     const loadingTimeout = setTimeout(() => {
       setLoading(false);
@@ -152,9 +159,10 @@ export function VotingPage() {
 
     return () => {
       unsubCandidates();
+      unsubVotes();
       clearTimeout(loadingTimeout);
     };
-  }, [voted, verifyingVote]);
+  }, [verifyingVote]);
 
   const handleSelect = (candidateId: string) => {
     setSelectedCandidateId(candidateId);
@@ -339,28 +347,176 @@ export function VotingPage() {
     );
   }
 
+  const getResults = () => {
+    const results = candidates.map((candidate) => {
+      const voteCount = votes.filter((v) => v.candidateId === candidate.id).length;
+      return { name: candidate.name, votos: voteCount };
+    });
+    return results.sort((a, b) => b.votos - a.votos);
+  };
+
+  const resultsData = getResults();
+  const totalVotes = votes.length;
+
+  const LiveResultsSection = (
+    <motion.section 
+      initial={{ y: 30, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
+      className="mt-16 space-y-8"
+    >
+      <div className="flex items-center gap-3 mb-6">
+        <TrendingUp className="h-8 w-8 text-blue-400" />
+        <h2 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-sm">Estado Actual de la Elección</h2>
+      </div>
+
+      {/* Info Cards */}
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div className="rounded-[2rem] glass-panel p-6 border-l-4 border-l-emerald-500">
+          <div className="flex items-center gap-3 mb-3">
+            <Trophy className="h-6 w-6 text-emerald-400" />
+            <h3 className="text-xl font-bold text-white">Asignación de Cargos</h3>
+          </div>
+          <p className="text-blue-100/80 text-sm leading-relaxed mb-4">
+            El sistema asigna automáticamente los roles basándose en la cantidad de votos recibidos en tiempo real:
+          </p>
+          <ul className="space-y-2 text-sm font-medium">
+            <li className="flex items-center justify-between bg-white/5 p-2 rounded-lg">
+              <span className="text-yellow-400">1º Lugar</span>
+              <span className="text-white">Delegado</span>
+            </li>
+            <li className="flex items-center justify-between bg-white/5 p-2 rounded-lg">
+              <span className="text-gray-300">2º Lugar</span>
+              <span className="text-white">Subdelegado</span>
+            </li>
+            <li className="flex items-center justify-between bg-white/5 p-2 rounded-lg">
+              <span className="text-amber-600">3º Lugar</span>
+              <span className="text-white">Tercer Delegado</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="rounded-[2rem] glass-panel p-6 border-l-4 border-l-blue-500 flex flex-col justify-center items-center text-center">
+          <Users className="h-10 w-10 text-blue-400 mb-3" />
+          <h3 className="text-lg font-medium text-blue-200/80 uppercase tracking-widest">Participación Total</h3>
+          <p className="text-6xl font-extrabold text-white mt-2 drop-shadow-lg">{totalVotes}</p>
+          <p className="text-sm text-blue-200/60 mt-2">votos emitidos hasta ahora</p>
+        </div>
+      </div>
+
+      {/* Podium */}
+      {resultsData.length > 0 && (
+        <div className="rounded-[2rem] glass-panel p-6 sm:p-10">
+          <h3 className="text-xl font-bold text-white mb-8 text-center">Proyección Actual</h3>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {resultsData.slice(0, 3).map((res, idx) => {
+              const titles = ['Delegado', 'Subdelegado', 'Tercer Delegado'];
+              const colors = ['text-yellow-400', 'text-gray-300', 'text-amber-600'];
+              const bgColors = ['bg-yellow-500/10 border-yellow-500/20', 'bg-gray-400/10 border-gray-400/20', 'bg-amber-600/10 border-amber-600/20'];
+              const percentage = totalVotes > 0 ? ((res.votos / totalVotes) * 100).toFixed(1) : '0';
+
+              return (
+                <div key={idx} className={`rounded-2xl border p-5 text-center relative overflow-hidden ${bgColors[idx] || 'bg-white/5 border-white/10'}`}>
+                  <div className="absolute top-0 left-0 w-full h-1 bg-white/10">
+                    <div className={`h-full ${colors[idx] ? colors[idx].replace('text-', 'bg-') : 'bg-blue-400'}`} style={{ width: `${percentage}%` }}></div>
+                  </div>
+                  <p className={`text-xs font-bold uppercase tracking-widest ${colors[idx] || 'text-blue-400'}`}>
+                    {titles[idx] || `Puesto ${idx + 1}`}
+                  </p>
+                  <p className="mt-3 text-2xl font-bold text-white truncate">{res.name}</p>
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    <span className="text-lg font-mono text-white">{res.votos}</span>
+                    <span className="text-xs text-blue-200/60 uppercase">votos</span>
+                    <span className="text-xs font-bold bg-black/20 px-2 py-1 rounded-md ml-1">{percentage}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Charts */}
+      {resultsData.length > 0 && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-[2rem] glass-panel p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <BarChart3 className="h-5 w-5 text-blue-400" />
+              <h3 className="text-lg font-bold text-white">Votos por Candidato</h3>
+            </div>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={resultsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="name" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={{ stroke: '#374151' }} />
+                  <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={{ stroke: '#374151' }} allowDecimals={false} />
+                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ backgroundColor: 'rgba(10,10,10,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }} />
+                  <Bar dataKey="votos" radius={[4, 4, 0, 0]}>
+                    {resultsData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] glass-panel p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <PieChartIcon className="h-5 w-5 text-purple-400" />
+              <h3 className="text-lg font-bold text-white">Distribución Porcentual</h3>
+            </div>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={resultsData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="votos"
+                    stroke="none"
+                  >
+                    {resultsData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(10,10,10,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }} />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.section>
+  );
+
   if (voted) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 200, damping: 20 }}
-          className="flex max-w-md flex-col items-center rounded-[2rem] glass-panel p-10"
-        >
-          <motion.div 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring" }}
-            className="mb-6 rounded-full bg-green-500/20 p-5 text-green-400 shadow-[0_0_30px_rgba(74,222,128,0.3)]"
+      <div className="min-h-screen px-4 py-12 pb-32 text-white sm:px-6 lg:px-8 relative z-10">
+        <div className="mx-auto max-w-4xl">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            className="flex flex-col items-center rounded-[2rem] glass-panel p-10 text-center mb-12"
           >
-            <CheckCircle className="h-16 w-16" />
+            <motion.div 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring" }}
+              className="mb-6 rounded-full bg-green-500/20 p-5 text-green-400 shadow-[0_0_30px_rgba(74,222,128,0.3)]"
+            >
+              <CheckCircle className="h-16 w-16" />
+            </motion.div>
+            <h1 className="mb-3 text-4xl font-extrabold tracking-tight text-white drop-shadow-md">¡Voto Registrado!</h1>
+            <p className="text-blue-100/80 text-lg leading-relaxed max-w-lg">
+              Tu voto ha sido guardado exitosamente. Gracias por participar en las elecciones de 2do 4ta.
+            </p>
           </motion.div>
-          <h1 className="mb-3 text-4xl font-extrabold tracking-tight text-white drop-shadow-md">¡Voto Registrado!</h1>
-          <p className="text-blue-100/80 text-lg leading-relaxed">
-            Tu voto ha sido guardado exitosamente. Gracias por participar en las elecciones de 2do 4ta.
-          </p>
-        </motion.div>
+
+          {LiveResultsSection}
+        </div>
       </div>
     );
   }
@@ -522,6 +678,8 @@ export function VotingPage() {
             )}
           </motion.section>
         </div>
+
+        {LiveResultsSection}
 
         <AnimatePresence>
           {showConfirmModal && (
